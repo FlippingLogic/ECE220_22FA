@@ -1,0 +1,422 @@
+Author:		Yu, Siying
+File:		MP7 Debug Report
+Created:	11 November 2022
+Modified:	15 November 2022
+
+1. reverse
+
+	Specific task requirement:
+	
+	a)	What the code does: 
+		The program requests one or more strings, then prints them respectively in reverse along with its length.
+	b)	How it works: 
+		i.	First, the program takes n strings from the shell and store it in array argv[] from argv[1] to argv[n+1].
+		ii.	In main function, each string is dealt with in turn by using a for loop, which increment i from 1 to n+1.
+		iii.	For individual string, first print "9 8 7 6 5 4 3 2 1 0\nWhat's on the stack now?\n\n""argv[i] reversed is".
+		iv.	Then, recursively calling the print_reverse until the pointer(s) points to the end of the string '\0'.
+		v.	When pointer points '\0',  print_reverse returns rest to the caller function, print the current character, moves the pointer one bit back.
+		vi.	Each print_reverse returns (rest+1)  to its caller function, print the current character until back to the last caller function.
+		vii.	Back to main function, print " (length %d)\n", rest. 		
+	c)	What arguments it takes: 
+		One or more strings from the shell, seperated by spaces.
+		
+	General task:
+
+	a)	Bug Identifying
+	
+		// Case 1
+		Input: 0	
+		Desired Output: 						
+			9 8 7 6 5 4 3 2 1 0	
+			What's on the stack now?
+		
+			"0" reversed is "0" (length 1)
+		Actual Output: 
+			9 8 7 6 5 4 3 2 1 0	
+			What's on the stack now?
+		
+			"0" reversed is "0" (length 1)
+		Result: Correct
+				
+		// Case 2
+		Input: a!		
+		Desired Output: 
+			9 8 7 6 5 4 3 2 1 0	
+			What's on the stack now?
+		
+			"a!" reversed is "!a" (length 2)			
+		Actual Output: 
+			9 8 7 6 5 4 3 2 1 0	
+			What's on the stack now?
+		
+			"a!" reversed is "!a" (length 2)
+		Result: Correct
+		
+		// Case 3
+		Input: hello		
+		Desired Output: 
+			9 8 7 6 5 4 3 2 1 0	
+			What's on the stack now?
+		
+			"hello" reversed is "olleh" (length 5)				
+		Actual Output: 
+			9 8 7 6 5 4 3 2 1 0
+			What's on the stack now?
+
+			"hello" reversed is "olleh" (length 32770)
+		Result: False
+		
+		// Case 4
+		Input: 1d?sjz	
+		Desired Output: 
+			9 8 7 6 5 4 3 2 1 0	
+			What's on the stack now?
+		
+			"1d?sjz" reversed is "zjs?d1" (length 6)		
+		Actual Output: 
+			9 8 7 6 5 4 3 2 1 0
+			What's on the stack now?
+
+			"1d?sjz" reversed is "zjs?d1" (length 32773)
+		Result: False
+		
+		
+	b)	Bug Tracing
+	
+		Shell: gdb prev
+		(gdb) break pr_buggy.c:40
+		Breakpoint 1 at 0x1199: file pr_buggy.c, line 40.
+		(gdb) break pr_buggy.c:52
+		Breakpoint 2 at 0x11cd: file pr_buggy.c, line 52.
+		(gdb) run nice
+		Starting program: /home/ysy/UserFile/ECE220/Drafts/MP7/printRev/prev nice
+		[Thread debugging using libthread_db enabled]
+		Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+		9 8 7 6 5 4 3 2 1 0
+		What's on the stack now?
+
+
+		Breakpoint 1, print_reverse (s=0x7fffffffe2d7 "nice") at pr_buggy.c:40
+		40	    if ('\0' == *s) {
+		(gdb) display rest
+		1: rest = 0
+		.......
+		(gdb) c
+		Continuing.
+
+		Breakpoint 1, print_reverse (s=0x7fffffffe2da "e") at pr_buggy.c:40
+		40	    if ('\0' == *s) {
+		1: rest = 0					// Analysis: 0 is the ideal value of "rest".
+		(gdb) c
+		Continuing.
+
+		Breakpoint 1, print_reverse (s=0x7fffffffe2db "") at pr_buggy.c:40		// Analysis: Bottom of the recursion is reached.
+		40	    if ('\0' == *s) {
+		1: rest = 32767				// Analysis: It's the first time "rest" is used, and the ideal value is 0, but now it's 32767, which causes the bug. It needs initialization.
+		(gdb) c
+		Continuing.
+
+		Breakpoint 2, print_reverse (s=0x7fffffffe2da "e") at pr_buggy.c:52
+		52	    return (rest + 1);
+		1: rest = 32767
+		(gdb) c
+		Continuing.
+
+		Breakpoint 2, print_reverse (s=0x7fffffffe2d9 "ce") at pr_buggy.c:52
+		52	    return (rest + 1);
+		1: rest = 32768			// Analysis: "rest" increments based on the randomly chosen number
+		(gdb) c
+		Continuing.
+
+		Breakpoint 2, print_reverse (s=0x7fffffffe2d8 "ice") at pr_buggy.c:52
+		52	    return (rest + 1);
+		1: rest = 32769
+		(gdb) c
+		Continuing.
+
+		Breakpoint 2, print_reverse (s=0x7fffffffe2d7 "nice") at pr_buggy.c:52
+		52	    return (rest + 1);
+		1: rest = 32770
+		(gdb) c
+		Continuing.
+		"nice" reversed is "ecin" (length 32771)				// Analysis: The reversed string is right, only length is wrong (caused by un-initialized counter "rest").
+		[Inferior 1 (process 10689) exited normally]
+
+		
+	c)	Bug Analysis
+	
+		Root cause: The counter variable rest is not initialized. The orignal value of rest is ambiguous (which is determined randomly by the computer).
+		Fix method: Initialize rest when declare it. At pr_buggy.c: 36, modify the code as: int32_t rest = 0;
+			
+			
+2.	primeNumber
+	
+	Specific task requirement:
+	
+	a)	Implement of is_prime:
+		Loop the divisor from 2 to sqare root of number minus 1, if all these numbers can't be divide evenly, then return 1 (announce it's a prime number), otherwise return 0.
+		A possible code implementation as below:
+		int32_t	is_prime (int32_t num){
+		    for (int32_2 divisor = 2; divisor<sqrt(num); divisor++) {
+			if (divides_evenly (divisor, num)) { return 0; }
+		    }
+		    return 1;
+		}
+		
+	b)	Possible cause of the bug:
+		It didn't test the case when divisor == square root of the number, so the power of prime numbers are judged as prime numbers.
+	
+	General task: 
+	
+	a)	Bug Identifying
+	
+		// Case 1
+		Input: 2
+		Desired Output: 2 is prime.
+		Actual Output: 2 is prime.
+		Result: Correct
+
+		// Case 2
+		Input: 4
+		Desired Output: none
+		Actual Output: 4 is prime.
+		Result: False
+
+		// Case 3
+		Input: 36
+		Desired Output: none
+		Actual Output: none
+		Result: Correct
+
+		// Case 4
+		Input: 121
+		Desired Output: none
+		Actual Output: 121 is prime.
+		Result: False
+		
+	b)	Bug Tracing
+	
+		Shell: gdb primeNumber
+		(gdb) break divides_evenly if value == 4
+		Breakpoint 1 at 0x11a7: file primeNumber.c, line 67.
+		(gdb) break divides_evenly if value == 5
+		Note: breakpoint 1 also set at pc 0x11a7.
+		Breakpoint 2 at 0x11a7: file primeNumber.c, line 67.
+		(gdb) break divides_evenly if value == 121
+		Note: breakpoints 1 and 2 also set at pc 0x11a7.
+		Breakpoint 3 at 0x11a7: file primeNumber.c, line 67.
+		(gdb) r
+		Starting program: /home/ysy/UserFile/ECE220/Drafts/MP7/primeNumber/primeNumber 
+		[Thread debugging using libthread_db enabled]
+		Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+		2 is prime.
+		3 is prime.
+		4 is prime.						// Analysis: 4 is expected to be tested, but it's not. Here's a bug, caused by 2 is not smaller than sqrt(4).
+
+		Breakpoint 2, divides_evenly (divisor=2, value=5) at primeNumber.c:67			// Analysis: It's the ideal result.
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+		5 is prime.
+		........
+		113 is prime.
+
+		Breakpoint 3, divides_evenly (divisor=2, value=121) at primeNumber.c:67			// Analysis: For every number, test begin with 2
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=3, value=121) at primeNumber.c:67			// Analysis: The divisor is incremented by 1 in each loop
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=4, value=121) at primeNumber.c:67
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=5, value=121) at primeNumber.c:67
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=6, value=121) at primeNumber.c:67
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=7, value=121) at primeNumber.c:67
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=8, value=121) at primeNumber.c:67
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=9, value=121) at primeNumber.c:67
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+
+		Breakpoint 3, divides_evenly (divisor=10, value=121) at primeNumber.c:67		// Analysis: For  121, the biggest divisor tested is 10, which equals to sqrt(11)-1.
+		67	    multiple = (value / divisor) * divisor;
+		(gdb) c
+		Continuing.
+		121 is prime.
+		........
+		997 is prime.
+		[Inferior 1 (process 6087) exited normally]
+		
+	c)	Bug Analysis
+
+		Root cause: is_prime() doesn't test the case when divisor == square root of the number, so the power of prime numbers would be judged as prime numbers.
+		Fix method: Loop the divisor from 2 to sqare root of number, other parts remain the same.
+
+
+3.	sort
+		
+	Specific task requirement :
+	
+	Bug description:
+	For a given array, the program tries to sort it in ascent order. It has a certain probability of giving the right answer, but it also has a certain probability of giving the wrong answer. 
+	When an incorrect answer occurs, a number less than the maximum value (in test1.txt, a value less than 117) in the sequence will be repeated, and the maximum value will disappear in the sorted sequence.
+	
+	General task:
+	
+	a)	Bug Identifying
+	
+	// Case 1
+	Input: test1.txt (n=20, arr=[1 22 3 45 51 96 117 18 29 13 9 100 41 23 12 99 15 19 58 97])
+	Run the programe several times.
+		// 1st time
+		Desired Output: 1 3 9 12 13 15 18 19 22 23 29 41 45 51 58 96 97 99 100 117 
+		Actual Output: 1 3 9 12 13 15 18 18 19 22 23 29 41 45 51 58 96 97 99 100 
+		Result: False
+		// 2nd time
+		Desired Output: 1 3 9 12 13 15 18 19 22 23 29 41 45 51 58 96 97 99 100 117 
+		Actual Output: 1 3 9 12 13 15 18 19 22 23 29 41 45 51 58 96 97 99 100 117 
+		Result: Correct
+		// 3rd time
+		Desired Output: 1 3 9 12 13 15 18 19 22 23 29 41 45 51 58 96 97 99 100 117 
+		Actual Output: 1 3 9 12 13 15 18 19 22 23 29 41 45 51 58 96 97 99 100 117 
+		Result: Correct
+		// 4th time
+		Desired Output: 1 3 9 12 13 15 18 19 22 23 29 41 45 51 58 96 97 99 100 117 
+		Actual Output: 1 3 9 12 13 15 18 19 22 23 29 41 41 45 51 58 96 97 99 100 
+		Result: False
+		
+	// Case 2
+	Input: test2.txt (n=10,arr=[89 22 31 45 51 96 117 18 29 13])
+	Run the programe several times.
+		// 1st time
+		Desired Output: 13 18 22 29 31 45 51 89 96 117 
+		Actual Output: 13 18 22 29 31 45 51 89 96 117 
+		Result: Correct
+		// 2nd time
+		Desired Output: 13 18 22 29 31 45 51 89 96 117 
+		Actual Output: 13 18 22 29 31 45 51 89 96 117 
+		Result: Correct
+		// 3rd time
+		Desired Output: 13 18 22 29 31 45 51 89 96 117 
+		Actual Output: 13 18 22 29 29 31 45 51 89 96 
+		Result: False
+		// 4th time
+		Desired Output: 13 18 22 29 31 45 51 89 96 117 
+		Actual Output: 13 18 22 29 31 45 45 51 89 96
+		Result: False
+	
+	
+	b)	Bug tracing
+	
+	Shell: gdb sort
+	(gdb) break heapify
+	Breakpoint 1 at 0x1311: file sort.c, line 20.
+	(gdb) run test1.txt
+	Starting program: /home/ysy/UserFile/ECE220/Drafts/MP7/sort/sort test1.txt
+	[Thread debugging using libthread_db enabled]
+	Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+
+	Breakpoint 1, heapify (arr=0x55555555a490, n=20, i=9) at sort.c:20
+	20	    int largest = i;  // Initialize largest as root
+	(gdb) display arr[i]
+	1: arr[i] = 13
+	(gdb) display arr[2*i+1]
+	2: arr[2*i+1] = 97
+	(gdb) display arr[2*i+2]
+	3: arr[2*i+2] = 18										// Analysis: arr[20] is actually not in the given array, it's randomly assigned a number in the given array.
+	(gdb) clear heapify
+	Deleted breakpoint 1 
+	(gdb) break heapify if (n==20 & i==0)					// Analysis: break at the last step of the first maximum heap sort.
+	Breakpoint 2 at 0x555555555311: file sort.c, line 20.
+	(gdb) c
+	Continuing.
+
+	Breakpoint 2, heapify (arr=0x55555555a490, n=20, i=0) at sort.c:20			// Analysis: 117, the largest value, is swapped to arr[0] in this step.
+	20	    int largest = i;  // Initialize largest as root
+	1: arr[i] = 1
+	2: arr[2*i+1] = 99
+	3: arr[2*i+2] = 117
+	(gdb) break heapify
+	Note: breakpoint 2 also set at pc 0x555555555311.
+	Breakpoint 3 at 0x555555555311: file sort.c, line 20.
+	(gdb) c
+	Continuing.
+
+	Breakpoint 3, heapify (arr=0x55555555a490, n=20, i=2) at sort.c:20
+	20	    int largest = i;  // Initialize largest as root
+	1: arr[i] = 1
+	2: arr[2*i+1] = 100
+	3: arr[2*i+2] = 23
+	(gdb) c
+	Continuing.
+
+	Breakpoint 3, heapify (arr=0x55555555a490, n=20, i=5) at sort.c:20
+	20	    int largest = i;  // Initialize largest as root
+	1: arr[i] = 1
+	2: arr[2*i+1] = 96
+	3: arr[2*i+2] = 41
+	(gdb) c
+	Continuing.
+
+	Breakpoint 3, heapify (arr=0x55555555a490, n=20, i=11) at sort.c:20
+	20	    int largest = i;  // Initialize largest as root
+	1: arr[i] = 1
+	2: arr[2*i+1] = 0
+	3: arr[2*i+2] = 0
+	(gdb) c
+	Continuing.
+
+	Breakpoint 2, heapify (arr=0x55555555a490, n=20, i=0) at sort.c:20		// Analysis: arr[19] is supposed to be swapped to arr[0].
+	20	    int largest = i;  // Initialize largest as root
+	1: arr[i] = 18
+	2: arr[2*i+1] = 99
+	3: arr[2*i+2] = 100
+	(gdb) print arr[19]
+	$8 = 13							// Analysis: arr[19] is supposed to be 117, but now it's 13. So here's a bug, arr[19] is not swapped at all.
+	(gdb) print arr[20]
+	$9 = 117						// Analysis: arr[20] is expected to remain 18, but now it's 117. So here's a bug, arr[20] is actually swapped with arr[0].
+	(gdb) clear
+	Deleted breakpoints 2 3 
+	(gdb) c
+	Continuing.
+	1 3 9 12 13 15 18 18 19 22 23 29 41 45 51 58 96 97 99 100 			// Analysis: 117 disappears and 18 is repeated, other elements are right.
+	[Inferior 1 (process 12025) exited normally]
+	
+	
+	c)	Bug Analysis
+	
+		Root cause:
+			1)	When exchange the root of the heap and the last item of the heap, which should be a swap between arr[0] and arr[n-1],
+						the program actually swap the value of arr[0] and arr[n] (where n denotes the current length of the sorting heap).
+			2)	And the program would randomly assign a number in the given array to arr[n] (where n denotes the length of the given array).
+					
+			Combine 1) and 2), an extra number at arr[20] would be swapped into the array, and the largest value of the array would be discarded. 
+			Only when the randomly assigned value for arr[20] == the largest value in array, the program would happen to produce the right answer.
+			Otherwise, the randomly assigned value would be repeated in the program's output and the largest value of the array would disappear.
+					
+		Fix method:  In the part that exchange the root of the heap and the last item of the heap, let it swap the value of arr[0] and arr[n-1].
+		
+		
