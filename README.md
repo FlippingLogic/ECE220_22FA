@@ -1,7 +1,7 @@
 # ECE220_22FA
 
 ECE220: Computer Systems & Programming, Fall 2022  
-Instructor: Pavel Loskot @ ZJU-UIUC Institute | Steven Lumetta @ University of Illinois Urbana Champaign
+Instructor: Pavel Loskot | Steven Lumetta @ ZJU_UIUC Institute
 
 ECE220 is one of my favourate courses. Nice MP settings, and fantastic transition between assemble and C!   
 
